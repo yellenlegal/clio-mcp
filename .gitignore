@@ -1,0 +1,7 @@
+.env
+.clio_tokens.json
+.venv/
+__pycache__/
+*.pyc
+*.html
+.DS_Store
