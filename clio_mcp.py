@@ -239,6 +239,96 @@ def create_time_entry(
     return json.dumps(result, indent=2)
 
 
+_ACTIVITY_FIELDS = "id,type,date,quantity,total,note,price,matter{id,display_number,description},user{id,name},activity_description{id,name}"
+
+
+@mcp.tool()
+def list_time_entries(
+    matter_id: int | None = None,
+    user_id: int | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = 50,
+) -> str:
+    """List time entries from Clio, optionally filtered by matter, user, or date range.
+
+    Args:
+        matter_id: Filter to entries for this matter ID
+        user_id: Filter to entries by this user ID
+        date_from: Start date filter (YYYY-MM-DD)
+        date_to: End date filter (YYYY-MM-DD)
+        limit: Max entries to return (default 50)
+    """
+    params = f"fields={_ACTIVITY_FIELDS}&limit={limit}&type=TimeEntry"
+    if matter_id:
+        params += f"&matter_id={matter_id}"
+    if user_id:
+        params += f"&user_id={user_id}"
+    if date_from:
+        params += f"&date_from={date_from}"
+    if date_to:
+        params += f"&date_to={date_to}"
+
+    result = _api("GET", f"/activities.json?{params}")
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+def update_time_entry(
+    activity_id: int,
+    note: str | None = None,
+    date: str | None = None,
+    quantity_in_seconds: int | None = None,
+    activity_description_id: int | None = None,
+) -> str:
+    """Update an existing time entry in Clio.
+
+    Args:
+        activity_id: The Clio activity ID to update
+        note: New description of work performed (omit to keep unchanged)
+        date: New date (YYYY-MM-DD) (omit to keep unchanged)
+        quantity_in_seconds: New duration in seconds (omit to keep unchanged)
+        activity_description_id: New activity description ID (omit to keep unchanged)
+    """
+    data: dict = {}
+    if note is not None:
+        data["note"] = note
+    if date is not None:
+        data["date"] = date
+    if quantity_in_seconds is not None:
+        data["quantity"] = quantity_in_seconds
+    if activity_description_id is not None:
+        data["activity_description"] = {"id": activity_description_id}
+
+    result = _api(
+        "PATCH",
+        f"/activities/{activity_id}.json?fields={_ACTIVITY_FIELDS}",
+        json={"data": data},
+    )
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+def delete_time_entry(activity_id: int) -> str:
+    """Delete a time entry from Clio. Use with caution — this cannot be undone.
+
+    Args:
+        activity_id: The Clio activity ID to delete
+    """
+    token = _get_access_token()
+    resp = httpx.request(
+        "DELETE",
+        f"{API_URL}/activities/{activity_id}.json",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    if not resp.is_success:
+        raise Exception(f"{resp.status_code} {resp.reason_phrase}: {resp.text}")
+    return json.dumps({"deleted": True, "activity_id": activity_id})
+
+
 # ---- Hard Cost / Expense Entries -------------------------------------------
 
 @mcp.tool()
