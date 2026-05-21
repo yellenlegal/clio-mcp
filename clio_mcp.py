@@ -551,7 +551,7 @@ def create_calendar_entry(
         }
     }
 
-    result = _api("POST", f"/calendar_entries.json?fields={_CAL_FIELDS}", json=body)
+    result = _api("POST", "/calendar_entries.json", json=body)
     return json.dumps(result, indent=2)
 
 
